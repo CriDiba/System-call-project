@@ -15,10 +15,8 @@
 #include "fifo.h"
 
 void signTermHandler(int sig) {
-    // do we have a valid message queue identifier?
-    if (msqid >= 0) {
 
-    }
+    //Rimuovo IPC
 
     // terminate the server process
     exit(0);
@@ -41,8 +39,8 @@ int main(int argc, char * argv[]) {
     }
 
     //Leggo il file file_posizioni
-    int file = open(argv[2], O_RDONLY);
-    if (file == -1) {
+    int file_posizioni = open(argv[2], O_RDONLY);
+    if (file_posizioni == -1) {
         printf("File %s does not exist\n", argv[2]);
         exit(1);
     }
@@ -69,6 +67,8 @@ int main(int argc, char * argv[]) {
 
     //Genera memoria CONDIVISA ACK
     int shmidAckList = alloc_shared_memory(IPC_PRIVATE, 100*sizeof(struct Acknowledgment));
+
+    struct Acknowledgment *acknowled_list = (struct Acknowledgment*)get_shared_memory(shmidAckList, 0);
 
     /*---------------------------------------------
         SEMAFORI
@@ -114,19 +114,15 @@ int main(int argc, char * argv[]) {
 
 
 
-
-
-
     /*---------------------------------------------
         ACK MANAGER
     -----------------------------------------------*/
     //GENERA Ack MANAGER
-    pid_t pid = fork();
-    if (pid == -1)
+    pid_t pid_ack_manager = fork();
+    if (pid_ack_manager == -1)
         printf("Ack_manager not created!");
-    // check if running process is child or parent
-    else if (pid == 0) {
-        // code executed only by the child --> Ack_manager
+    else if (pid_ack_manager == 0) {
+        // code executed only by the Ack_manager
 
         //Genera coda di messaggi
         // get the message queue, or create a new one if it does not exist
@@ -135,17 +131,29 @@ int main(int argc, char * argv[]) {
            errExit("msgget failed");
 
 
-
         while (1) {
             //Controlla i msg
+            int msg_id;
+
+            for (int i = 0; i < 100; i++) {
+                //Controlla la lista
+                if (acknowled_list[i].message_id == message_id) {
+
+                }
+            }
 
             //Invia ack al client
 
             //Libera memoria
+
+            //Aspetta 5 secondi
+            sleep(5);
         }
 
-
     }
+
+
+    pid_t devices_pid[5] = {0}; //Pid devices
 
 
     /*---------------------------------------------
@@ -195,16 +203,11 @@ int main(int argc, char * argv[]) {
                 // Movimento
                 // wait the i-th semaphore
                 semOp(sem_idx_board, (unsigned short)dev, -1);
-
-
-
-
-
                     //Accedo alla board
                     //Blocco accesso alla Board
                     semOp(sem_idx_access, 0, -1);
 
-
+                        updatePosition(file_posizioni);
 
                     //Sblocco accesso alla board
                     semOp(sem_idx_access, 0, 1);
@@ -216,18 +219,26 @@ int main(int argc, char * argv[]) {
 
 
             }
+        } else {
+            //Eseguito da SERVER
+            devices_pid[dev] = pid;
+
         }
     }
 
+    int step = 0;
 
     while (1) {
-        /* Sblocco il device 1 */
-        semOp(semid, (unsigned short) 0, 1);
-        sleep(2);
+        //Stampo le posizioni dei devices e gli id dei msg
         print_device_position();
+
+        //Sblocco il device 1 --> Inizio movimento
+        semOp(semid, (unsigned short) 0, 1);
+
+        //Attendo 2 secondi
+        sleep(2);
+        step++;
     }
-
-
 
     return 0;
 }

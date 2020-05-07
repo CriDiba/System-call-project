@@ -1,22 +1,37 @@
 /// @file client.c
 /// @brief Contiene l'implementazione del client.
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
+#include <unistd.h>
 #include <string.h>
-
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/msg.h>
+#include <fcntl.h>
 
 #include "err_exit.h"
 #include "defines.h"
 
+//variabili Globali
+char *baseDeviceFIFO = "/tmp/dev_fifo.";
+
 int readInt(const char *s) {
     char *endptr = NULL;
-
     errno = 0;
     long int res = strtol(s, &endptr, 10);
+    if (errno != 0 || *endptr != '\n' || res < 0) {
+        printf("invalid input argument\n");
+        exit(1);
+    }
+
+    return res;
+}
+
+double readDouble(const char *s) {
+    char *endptr = NULL;
+    errno = 0;
+    double res = strtod(s, &endptr);
     if (errno != 0 || *endptr != '\n' || res < 0) {
         printf("invalid input argument\n");
         exit(1);
@@ -43,7 +58,7 @@ int main(int argc, char * argv[]) {
     // crea an message data struct
     Message message;
 
-    char buffer[10];
+    char buffer[20];
     size_t len;
 
     // PID pid_receiver
@@ -65,14 +80,11 @@ int main(int argc, char * argv[]) {
     // PID pid_receiver
     printf("Inserire massima distanza comunicazione per il messaggio: ");
     fgets(buffer, sizeof(buffer), stdin);
-    message.code = readInt(buffer);
+    message.max_distance = readDouble(buffer);
 
     message.pid_sender = getpid();
 
-
     //OPEN FIFO
-    char *baseDeviceFIFO = "/tmp/dev_fifo.";
-
     // make the path of Device's FIFO
     char path2DeviceFIFO [25];
     sprintf(path2DeviceFIFO, "%s%d", baseDeviceFIFO, message.pid_receiver);
@@ -87,25 +99,19 @@ int main(int argc, char * argv[]) {
         errExit("Write failed");
 
     if(close(deviceFIFO) == -1)
-      errExit("Close failed");
+        errExit("Close failed");
 
-
-    //ATTENDE LA MSG queue
-
-    Acknowledgment acknowledgment;
-
+    //LEGGE Da Msg Queue
     // get the message queue identifier
     int msqid = msgget(msgKey, S_IRUSR | S_IWUSR);
     if (msqid == -1)
         errExit("msgget failed");
-
 
     struct ack_list ack_list;
     //Leggo dalla coda il primo msg con mtype = al pid
     size_t mSize = sizeof(struct ack_list) - sizeof(long);
     if (msgrcv(msqid, &ack_list, mSize, getpid(), 0) == -1)
       errExit("msgget failed");
-
 
     //SCRIVO SU FILE
     // close the standard output and error stream
@@ -116,7 +122,7 @@ int main(int argc, char * argv[]) {
     sprintf(path2MessageOutFile, "out_%d.txt", message.message_id);
 
     // open the source file for only writing
-    int fileOut = open(path2MessageOutFile, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    int fileOut = open(path2MessageOutFile, O_CREAT | O_EXCL | O_WRONLY, S_IRWXU | S_IRWXG);
     if (fileOut == -1)
         errExit("open failed");
 
@@ -125,12 +131,16 @@ int main(int argc, char * argv[]) {
     printf("Lista acknowledgment:\n");
     //Per ogni elemento della lista di Ack
     for (int i = 0; i < 5; i++) {
-        printf("%d, %d, %s\n", ack_list.acknowledgment[i].pid_sender, ack_list.acknowledgment[i].pid_receiver, ack_list.acknowledgment[i].timestamp);
+        printf("%d, %d, %s\n",
+            ack_list.acknowledgment[i].pid_sender,
+            ack_list.acknowledgment[i].pid_receiver,
+            ack_list.acknowledgment[i].timestamp
+        );
     }
 
-
     // close the file descriptor of the empty file
-    close(fileOut);
+    if(close(fileOut) == -1)
+        errExit("close failed");
 
     return 0;
 }
