@@ -7,13 +7,6 @@
 #ifndef _SHARED_MEMORY_HH
 #define _SHARED_MEMORY_HH
 
-#include <stdlib.h>
-
-// the Request structure defines a request sent by a client
-struct Board {
-    int matrix [10][10]
-};
-
 // The alloc_shared_memory method creates, if it does not exist, a shared
 // memory segment with size bytes and shmKey key.
 // It returns the shmid on success, otherwise it terminates the calling process

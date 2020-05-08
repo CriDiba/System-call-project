@@ -4,7 +4,9 @@
 
 #include "defines.h"
 
-
+/*-----------------------------------------------
+    SERVER FUNCTIONS
+-----------------------------------------------*/
 
 void updatePosition(int pos_file_fd){
     char buffer[4];
@@ -61,4 +63,40 @@ int getY(pid_t pid) {
 
 void print_device_msgs() {
     //Stampa lista messaggi
+}
+
+
+
+void get_tstamp(time_t timer, char * buffer, size_t buffer_size){
+    struct tm * tm_info = localtime(&timer);
+    strftime(buffer, buffer_size, "%Y-%m-%d %H:%M:%S", tm_info);
+}
+
+
+/*-----------------------------------------------
+    CLIENTS FUNCTIONS
+-----------------------------------------------*/
+
+int readInt(const char *s) {
+    char *endptr = NULL;
+    errno = 0;
+    long int res = strtol(s, &endptr, 10);
+    if (errno != 0 || *endptr != '\n' || res < 0) {
+        printf("invalid input argument\n");
+        exit(1);
+    }
+
+    return res;
+}
+
+double readDouble(const char *s) {
+    char *endptr = NULL;
+    errno = 0;
+    double res = strtod(s, &endptr);
+    if (errno != 0 || *endptr != '\n' || res < 0) {
+        printf("invalid input argument\n");
+        exit(1);
+    }
+
+    return res;
 }

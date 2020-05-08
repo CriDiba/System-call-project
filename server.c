@@ -14,6 +14,11 @@
 #include "semaphore.h"
 #include "fifo.h"
 
+// the Request structure defines a request sent by a client
+struct Board {
+    int matrix [10][10]
+};
+
 void signTermHandler(int sig) {
 
     //Rimuovo IPC
@@ -58,7 +63,7 @@ int main(int argc, char * argv[]) {
     if(signal(SIGTERM, signTermHandler) == SIG_ERR)
         errExit("change signal handler failed");
 
-    /*---------------------------------------------
+    /*-----------------------------------------------
         MEMORIA CONDIVISA
     -----------------------------------------------*/
 

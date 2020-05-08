@@ -1,44 +1,19 @@
 /// @file client.c
 /// @brief Contiene l'implementazione del client.
 
-#include <unistd.h>
-#include <string.h>
 #include <stdio.h>
-#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
-#include <sys/msg.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <sys/msg.h>
 
 #include "err_exit.h"
 #include "defines.h"
 
-//variabili Globali
 char *baseDeviceFIFO = "/tmp/dev_fifo.";
-
-int readInt(const char *s) {
-    char *endptr = NULL;
-    errno = 0;
-    long int res = strtol(s, &endptr, 10);
-    if (errno != 0 || *endptr != '\n' || res < 0) {
-        printf("invalid input argument\n");
-        exit(1);
-    }
-
-    return res;
-}
-
-double readDouble(const char *s) {
-    char *endptr = NULL;
-    errno = 0;
-    double res = strtod(s, &endptr);
-    if (errno != 0 || *endptr != '\n' || res < 0) {
-        printf("invalid input argument\n");
-        exit(1);
-    }
-
-    return res;
-}
 
 int main(int argc, char * argv[]) {
 
@@ -55,81 +30,84 @@ int main(int argc, char * argv[]) {
         exit(1);
     }
 
-    // crea an message data struct
+    // create a message data struct
     Message message;
 
     char buffer[20];
     size_t len;
 
-    // PID pid_receiver
+    // read the receriver's pid
     printf("Inserire pid device a cui inviare il messaggio: ");
     fgets(buffer, sizeof(buffer), stdin);
     message.pid_receiver = readInt(buffer);
 
-    // PID pid_receiver
+    // read the id of the message
     printf("Inserire id messaggio: ");
     fgets(buffer, sizeof(buffer), stdin);
     message.message_id = readInt(buffer);
 
-    // read a description of the order
+    // read the text of the message
     printf("Inserire messaggio: ");
     fgets(message.message, sizeof(message.message), stdin);
     len = strlen(message.message);
     message.message[len - 1] = '\0';
 
-    // PID pid_receiver
+    // read the maximum distance of the message
     printf("Inserire massima distanza comunicazione per il messaggio: ");
     fgets(buffer, sizeof(buffer), stdin);
     message.max_distance = readDouble(buffer);
 
+    // get the sender's pid
     message.pid_sender = getpid();
 
-    //OPEN FIFO
-    // make the path of Device's FIFO
+    // make the path of device's FIFO
     char path2DeviceFIFO [25];
     sprintf(path2DeviceFIFO, "%s%d", baseDeviceFIFO, message.pid_receiver);
 
+    // open the device's FIFO to send a message
     int deviceFIFO = open(path2DeviceFIFO, O_WRONLY);
     if(deviceFIFO == -1)
         errExit("Open failed");
 
-    // INVIA IL MESSAGGIO ATTRAVERSO LA FIFO
+    // send the message to the device through the FIFO
     int bW = write(deviceFIFO, &message, sizeof(Message));
     if (bW != sizeof(Message))
         errExit("Write failed");
 
+    // Close the device's FIFO
     if(close(deviceFIFO) == -1)
         errExit("Close failed");
 
-    //LEGGE Da Msg Queue
     // get the message queue identifier
     int msqid = msgget(msgKey, S_IRUSR | S_IWUSR);
     if (msqid == -1)
         errExit("msgget failed");
 
+    // create a acknowledge list data struct
     struct ack_list ack_list;
-    //Leggo dalla coda il primo msg con mtype = al pid
+
+    // read a message from the message queue.
+    // type is set equal to client pid.
+    // Thus, only the messages with type equals to pid are read.
     size_t mSize = sizeof(struct ack_list) - sizeof(long);
     if (msgrcv(msqid, &ack_list, mSize, getpid(), 0) == -1)
-      errExit("msgget failed");
+        errExit("Msgget failed");
 
-    //SCRIVO SU FILE
-    // close the standard output and error stream
+    // close the standard output fd in order to write on new opened file
     close(STDOUT_FILENO);
 
-    // make the path file
+    // make the output file path
     char path2MessageOutFile [25];
     sprintf(path2MessageOutFile, "out_%d.txt", message.message_id);
 
-    // open the source file for only writing
+    // create and open the output file for only writing
     int fileOut = open(path2MessageOutFile, O_CREAT | O_EXCL | O_WRONLY, S_IRWXU | S_IRWXG);
     if (fileOut == -1)
-        errExit("open failed");
+        errExit("Open failed");
 
-    // Print on the FD 1 --> FILE
+    // print the acknowledge list on the output file
     printf("Messaggio %d: %s:\n", message.message_id, message.message);
     printf("Lista acknowledgment:\n");
-    //Per ogni elemento della lista di Ack
     for (int i = 0; i < 5; i++) {
         printf("%d, %d, %s\n",
             ack_list.acknowledgment[i].pid_sender,
@@ -138,7 +116,7 @@ int main(int argc, char * argv[]) {
         );
     }
 
-    // close the file descriptor of the empty file
+    // close the file descriptor of the output file
     if(close(fileOut) == -1)
         errExit("close failed");
 
