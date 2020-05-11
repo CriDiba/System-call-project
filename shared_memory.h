@@ -7,6 +7,8 @@
 #ifndef _SHARED_MEMORY_HH
 #define _SHARED_MEMORY_HH
 
+#include <stdlib.h>
+
 // The alloc_shared_memory method creates, if it does not exist, a shared
 // memory segment with size bytes and shmKey key.
 // It returns the shmid on success, otherwise it terminates the calling process

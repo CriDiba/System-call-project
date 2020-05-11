@@ -83,13 +83,13 @@ int main(int argc, char * argv[]) {
     if (msqid == -1)
         errExit("msgget failed");
 
-    // create a acknowledge list data struct
-    struct ack_list ack_list;
+    // create a acknowledge message data struct
+    struct ack_message ack_list;
 
     // read a message from the message queue.
     // type is set equal to client pid.
     // Thus, only the messages with type equals to pid are read.
-    size_t mSize = sizeof(struct ack_list) - sizeof(long);
+    size_t mSize = sizeof(struct ack_message) - sizeof(long);
     if (msgrcv(msqid, &ack_list, mSize, getpid(), 0) == -1)
         errExit("Msgget failed");
 
@@ -109,10 +109,13 @@ int main(int argc, char * argv[]) {
     printf("Messaggio %d: %s:\n", message.message_id, message.message);
     printf("Lista acknowledgment:\n");
     for (int i = 0; i < 5; i++) {
+        char timestamp[20];
+        get_tstamp(ack_list.acknowledgment[i].timestamp, buffer, 20);
+
         printf("%d, %d, %s\n",
             ack_list.acknowledgment[i].pid_sender,
             ack_list.acknowledgment[i].pid_receiver,
-            ack_list.acknowledgment[i].timestamp
+            timestamp
         );
     }
 
