@@ -83,7 +83,7 @@ int main(int argc, char * argv[]) {
     if (msqid == -1)
         errExit("msgget failed");
 
-    // create a acknowledge message data struct
+    // create an acknowledge message data struct
     struct ack_message ack_list;
 
     // read a message from the message queue.
@@ -106,11 +106,11 @@ int main(int argc, char * argv[]) {
         errExit("Open failed");
 
     // print the acknowledge list on the output file
-    printf("Messaggio %d: %s:\n", message.message_id, message.message);
+    printf("Messaggio %d: %s\n", message.message_id, message.message);
     printf("Lista acknowledgment:\n");
     for (int i = 0; i < 5; i++) {
         char timestamp[20];
-        get_tstamp(ack_list.acknowledgment[i].timestamp, buffer, 20);
+        get_tstamp(ack_list.acknowledgment[i].timestamp, timestamp, 20);
 
         printf("%d, %d, %s\n",
             ack_list.acknowledgment[i].pid_sender,
