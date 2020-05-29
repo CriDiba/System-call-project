@@ -80,7 +80,7 @@ void updatePosition(struct Board *board, int file_posizioni, int *dev_i, int *de
 int in_range(int dev_i, int dev_j, int other_i, int other_j, double max_dist) {
     int diff_i = dev_i - other_i;
     int diff_j = dev_j - other_j;
-    return ((diff_i * diff_i) - (diff_j * diff_j) < (max_dist * max_dist));
+    return ((diff_i * diff_i) + (diff_j * diff_j) <= (max_dist * max_dist));
 }
 
 int received_yet(Acknowledgment * ackList, int message_id, pid_t pid_receiver) {
