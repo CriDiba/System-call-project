@@ -35,7 +35,7 @@ void get_position(struct Board * board, pid_t dev_pid, int *x, int *y) {
 }
 
 void print_device_msgs(Acknowledgment *ack_list, pid_t dev_pid) {
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 100 - 1; i++) {
         if (ack_list[i].pid_receiver == dev_pid && ack_list[i + 1].message_id == 0) {
             printf("%d ", ack_list[i].message_id);
         }
@@ -285,6 +285,22 @@ double readDouble(const char *s) {
     }
 
     return res;
+}
+
+int msg_id_available(int history_fd, int chosen_id){
+    //read file from beginning
+    lseek(history_fd, 0, SEEK_SET);
+
+    int current_id = 0;
+    while(read(history_fd, &current_id, sizeof(int))){
+        if(current_id == chosen_id){
+            printf("<Client> Message id is already taken!\n");
+            return 0;
+        }
+    }
+    if(write(history_fd, &chosen_id, sizeof(int)) == -1)
+        errExit("write failed");
+    return 1;
 }
 
 void get_tstamp(time_t timer, char *buffer, size_t buffer_size){

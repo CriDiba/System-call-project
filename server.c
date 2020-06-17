@@ -1,13 +1,5 @@
 /// @file server.c
 /// @brief Contiene l'implementazione del SERVER.
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <sys/msg.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/wait.h>
 
 #include "err_exit.h"
 #include "defines.h"
@@ -16,24 +8,25 @@
 #include "fifo.h"
 
 /* Global variables */
-pid_t devices_pid[5]; // devices pid
-pid_t ackManager_pid; // ack Manger pid
+pid_t devices_pid[5];       // devices pid
+pid_t ackManager_pid;       // ack Manger pid
 
-int shmidBoard;
-int shmidAckList;
-Acknowledgment *ack_list;
-struct Board *board;
+int shmidBoard;             // shared memory board id
+int shmidAckList;           // shared memory acklist id
+struct Board *board;        // board pointer
+Acknowledgment *ack_list;   // acklist pointer
 
-int sem_idx_board;
-int sem_idx_access;
-int sem_idx_ack;
+int sem_idx_board;          // semaphore board id
+int sem_idx_access;         // semaphore access id
+int sem_idx_ack;            // semaphore acklist id
 
-int msqid;
+int msqid;                  // message queue id
 
-int deviceFIFO;
+int deviceFIFO;             // device fifo id
 char *baseDeviceFIFO = "/tmp/dev_fifo.";
 char path2DeviceFIFO [25];
 
+char * msg_id_history_file = "/tmp/msg_id_history_file";
 
 void sigTermHandlerServer(int sig) {
 
@@ -62,6 +55,10 @@ void sigTermHandlerServer(int sig) {
     // remove acklist shared memory
     free_shared_memory(ack_list);
     remove_shared_memory(shmidAckList);
+
+    // close and remove history file
+    if(unlink(msg_id_history_file) == -1)
+        errExit("unlink failed");
 
     // terminate the server process
     exit(0);
@@ -126,6 +123,13 @@ int main(int argc, char * argv[]) {
     // set the function sigTermHandlerServer as handler for the signal SIGTERM
     if(signal(SIGTERM, sigTermHandlerServer) == SIG_ERR)
         errExit("change signal handler failed");
+
+    // creating a new file to store already existing msg_id
+    int history_fd = open(msg_id_history_file, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+    if(history_fd == -1)
+        errExit("open failed");
+    if(close(history_fd) == -1)
+        errExit("close failed");
 
     /*-----------------------------------------------
         SHARED MEMORY
@@ -228,7 +232,7 @@ int main(int argc, char * argv[]) {
             sprintf(path2DeviceFIFO, "%s%d", baseDeviceFIFO, getpid());
 
             // make device's FIFO
-            if (mkfifo(path2DeviceFIFO, S_IRUSR | S_IWUSR | S_IWGRP) == -1)
+            if (mkfifo(path2DeviceFIFO, S_IRUSR | S_IWUSR) == -1)
                 errExit("mkfifo failed");
 
             // Open the FIFO in non-blocking mode
@@ -250,6 +254,8 @@ int main(int argc, char * argv[]) {
             Message msgList[20] = {0};
 
             while (1) {
+                semOp(sem_idx_board, dev, -1);
+
                 // send messages to other devices
                 semOp(sem_idx_ack, 0, -1);
                 send_messages(ack_list, board, dev_i, dev_j, msgList, 20);
@@ -265,7 +271,6 @@ int main(int argc, char * argv[]) {
                 semOp(sem_idx_ack, 0, 1);
 
                 // update device position on Board
-                semOp(sem_idx_board, dev, -1);
                 updatePosition(board, file_posizioni, &dev_i, &dev_j);
                 if (dev < 4)
                     semOp(sem_idx_board, dev + 1, 1);
@@ -280,6 +285,10 @@ int main(int argc, char * argv[]) {
     /*-----------------------------------------------
         SERVER
     -----------------------------------------------*/
+
+    printf("####   SERVER READY!   ######################\n");
+    printf("       PID: [ %d ]\n", getpid());
+    printf("#############################################\n");
 
     int step = 0;
     while (1) {

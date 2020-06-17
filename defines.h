@@ -4,16 +4,19 @@
 
 #pragma once
 
-#include <sys/types.h>
-#include <time.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/sem.h>
-#include <string.h>
-#include <stdio.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <sys/msg.h>
+#include <sys/sem.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
 
 #include "err_exit.h"
 #include "fifo.h"
@@ -39,7 +42,6 @@ typedef struct {
     int message_id;
     time_t timestamp;
 } Acknowledgment;
-
 
 struct ack_message {
     long mtype;
@@ -118,6 +120,11 @@ int readInt(const char *s);
 // It checks that only a number n is provided as an input parameter,
 // and that n is greater than 0
 double readDouble(const char *s);
+
+// Search for a message_id in the history file,
+// if it finds the same id as the one chosen by user
+// it returns false otherwise write the new id
+int msg_id_available(int history_fd, int chosen_id);
 
 // Returns in buffer a string with timestamp
 // in format YYYY-MM-DD hh:mm:ss
